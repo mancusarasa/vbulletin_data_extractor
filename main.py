@@ -1,57 +1,15 @@
 #!/usr/bin/env python3
 
-from typing import List
-from typing import Set
+from typing import List, Set
 from urllib.parse import urljoin
 import re
-import hashlib
-from urllib3.util.retry import Retry
-from typing import Optional
 
 from bs4 import BeautifulSoup
 import requests
 from requests.adapters import HTTPAdapter
 
 from config import app_config
-
-
-def perform_login() -> requests.Session:
-    '''
-    Performs a login to the main page of the forum.
-    Returns a requests.Session object, which we'll use
-    later to authenticate our subsequent requests
-    when fetching the contents of a given thread
-    '''
-    base_url = app_config.get('general', 'base_url')
-    username = app_config.get('authentication', 'username')
-    password = app_config.get('authentication', 'password')
-    session = requests.Session()
-    retry = Retry(connect=3, backoff_factor=0.5)
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    # we'll just spoof the user agent in our request
-    # for the time being
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
-        'Connection': 'keep-alive'
-    }
-    data = {
-        'vb_login_username': username,
-        'vb_login_password': password,
-        'vb_login_md5password': hashlib.md5(password.encode()).hexdigest(),
-        'vb_login_md5password_utf': hashlib.md5(password.encode()).hexdigest(),
-        'cookieuser': 1,
-        'do': 'login',
-        's': '',
-        'securitytoken': 'guest'
-    }
-    session.post(
-        f'{base_url}login.php?do=login',
-        data=data,
-        headers=headers
-    )
-    return session
+from .login import perform_login
 
 
 def extract_forums(base_url: str) -> Set[str]:
@@ -110,7 +68,6 @@ def extract_threads(forum_url: str) -> Set[str]:
         print(f'Skipping subforum {forum_url}')
     soup = BeautifulSoup(page.text, 'html.parser')
     # check for pages
-
     for link in soup.find_all('a'):
         href = link.get('href')
         if href is None:
@@ -119,6 +76,7 @@ def extract_threads(forum_url: str) -> Set[str]:
             thread_url = urljoin(forum_url, href)
             threads_urls.add(thread_url)
     return threads_urls
+
 
 if __name__ == '__main__':
     base_url = app_config.get('general', 'base_url')
