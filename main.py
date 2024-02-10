@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from sys import exit
-from typing import Set
+from typing import Set, Tuple
 from urllib.parse import urljoin
 import re
 
@@ -124,6 +124,27 @@ def extract_thread_pages(thread_url: str) -> Set[str]:
                 break
     return set(f'{thread_url}&page={page}' for page in range(1, pages_count+1))
 
+
+def extract_posts(thread_page_url: str) -> Tuple[str, str]:
+    posts = set()
+    session = perform_login()
+    try:
+        page = session.get(thread_page_url)
+    except requests.exceptions.RequestException as e:
+        print(f'Skipping thread page {thread_page_url} from extract_posts')
+        return posts
+    soup = BeautifulSoup(page.text, 'html.parser')
+    for post in soup.find_all('table', id=lambda post_id: post_id and re.match('^post[0-9]+$', post_id)):
+        username_tag = post.find(class_='bigusername')
+        if username_tag:
+            username = str(post.find(class_='bigusername').contents[0])
+        else:
+            # deleted/guest users have their usernames defined differently
+            username = str(post.find(id=lambda i: i and re.match('^postmenu_[0-9]+$', i)).contents[0])
+        post_content = ' '.join([str(c) for c in post.find(id=lambda i: i and re.match('^post_message_[0-9]+$', i)).contents])
+        print(f'{username}: {post_content}')
+
+
 if __name__ == '__main__':
     base_url = app_config.get('general', 'base_url')
     forums = extract_forums(base_url)
@@ -132,4 +153,6 @@ if __name__ == '__main__':
         for forum_page in forum_pages:
             threads = extract_threads(forum_page)
             for thread in threads:
-                print(extract_thread_pages(thread))
+                thread_pages = extract_thread_pages(thread)
+                for thread_page in thread_pages:
+                    posts = extract_posts(thread_page)
