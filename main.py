@@ -125,7 +125,7 @@ def extract_thread_pages(thread_url: str) -> Set[str]:
     return set(f'{thread_url}&page={page}' for page in range(1, pages_count+1))
 
 
-def extract_posts(thread_page_url: str) -> Tuple[str, str]:
+def extract_posts(thread_page_url: str) -> Set[Tuple[str, str]]:
     posts = set()
     session = perform_login()
     try:
@@ -137,12 +137,13 @@ def extract_posts(thread_page_url: str) -> Tuple[str, str]:
     for post in soup.find_all('table', id=lambda post_id: post_id and re.match('^post[0-9]+$', post_id)):
         username_tag = post.find(class_='bigusername')
         if username_tag:
-            username = str(post.find(class_='bigusername').contents[0])
+            username = str(username_tag.contents[0])
         else:
             # deleted/guest users have their usernames defined differently
             username = str(post.find(id=lambda i: i and re.match('^postmenu_[0-9]+$', i)).contents[0])
         post_content = ' '.join([str(c) for c in post.find(id=lambda i: i and re.match('^post_message_[0-9]+$', i)).contents])
-        print(f'{username}: {post_content}')
+        posts.add((username, post_content))
+    return posts
 
 
 if __name__ == '__main__':
