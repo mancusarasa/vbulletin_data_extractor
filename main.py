@@ -101,6 +101,29 @@ def extract_threads(forum_url: str) -> Set[str]:
     return threads_urls
 
 
+def extract_thread_pages(thread_url: str) -> Set[str]:
+    '''
+    Extracts a set of urls, representing the list of pages 
+    present in the indicated thread_url.
+
+    :param str thread_url thread whose pages we need
+    :return Set[str] set of urls with the pages of the thread.
+    '''
+    session = perform_login()
+    try:
+        page = session.get(thread_url)
+    except requests.exceptions.RequestException as e:
+        print(f'Skipping thread {thread_url} from extract_thread_pages')
+        return set([thread_url])
+    soup = BeautifulSoup(page.text, 'html.parser')
+    pages_count = 1
+    for td in soup.find_all('td', class_='vbmenu_control'):
+        for content in td.contents:
+            if match := re.match('^Pagina 1 de ([0-9]+)$', str(content)):
+                pages_count = int(match.group(1))
+                break
+    return set(f'{thread_url}&page={page}' for page in range(1, pages_count+1))
+
 if __name__ == '__main__':
     base_url = app_config.get('general', 'base_url')
     forums = extract_forums(base_url)
@@ -108,4 +131,5 @@ if __name__ == '__main__':
         forum_pages = extract_forum_pages(forum)
         for forum_page in forum_pages:
             threads = extract_threads(forum_page)
-            print(threads)
+            for thread in threads:
+                print(extract_thread_pages(thread))
