@@ -4,12 +4,15 @@ from sys import exit
 from typing import Set, Tuple
 from urllib.parse import urljoin
 import re
+from json import dumps
 
 from bs4 import BeautifulSoup
 import requests
 
 from config import app_config
 from login import perform_login
+
+from amqp_connection import AmqpConnection
 
 
 def extract_forums(base_url: str) -> Set[str]:
@@ -147,6 +150,7 @@ def extract_posts(thread_page_url: str) -> Set[Tuple[str, str]]:
 
 
 if __name__ == '__main__':
+    connection = AmqpConnection()
     base_url = app_config.get('general', 'base_url')
     forums = extract_forums(base_url)
     for forum in forums:
@@ -157,3 +161,11 @@ if __name__ == '__main__':
                 thread_pages = extract_thread_pages(thread)
                 for thread_page in thread_pages:
                     posts = extract_posts(thread_page)
+                    message = [
+                        {
+                            'username': username,
+                            'content': content
+                        } for username, content in posts
+                    ]
+                    connection.send_message(dumps(message))
+                    # exit(0)
