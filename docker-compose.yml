@@ -15,9 +15,9 @@ services:
             interval: 30s
             timeout: 30s
             retries: 5
-    data_extractor:
+    posts_extractor:
         build:
-            context: ./data_extractor
+            context: ./posts_extractor
             dockerfile: Dockerfile
         environment:
             RABBIT_MQ_HOST: message_queue
