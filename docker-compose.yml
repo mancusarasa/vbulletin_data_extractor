@@ -1,5 +1,20 @@
-version: "3.4"
+version: "3.9"
 services:
+    message_queue:
+        image: rabbitmq:3-management
+        # container_name: rabbitmq
+        restart: always
+        ports:
+            - 5672:5672
+            - 15672:15672
+        environment:
+            - RABBITMQ_DEFAULT_USER=user
+            - RABBITMQ_DEFAULT_PASS=pass
+        healthcheck:
+            test: rabbitmq-diagnostics -q check_running
+            interval: 30s
+            timeout: 30s
+            retries: 5
     data_extractor:
         build:
             context: ./data_extractor
@@ -7,15 +22,8 @@ services:
         environment:
             RABBIT_MQ_HOST: message_queue
             RABBIT_MQ_PORT: 5672
+            RABBIT_MQ_USER: user
+            RABBIT_MQ_PASS: pass
         depends_on:
-            - message_queue
-    message_queue:
-        image: rabbitmq:3-management
-        restart: always
-        ports:
-            - 5672:5672
-            - 8080:15672
-        environment:
-            - POSTGRES_DB=tasks_tracker
-            - POSTGRES_USER=db_user
-            - POSTGRES_PASSWORD=db_password
+            message_queue:
+                condition: service_healthy
