@@ -27,9 +27,9 @@ services:
         depends_on:
             message_queue:
                 condition: service_healthy
-    data_persister:
+    posts_persister:
         build:
-            content: ./posts_persister
+            context: ./posts_persister
             dockerfile: Dockerfile
         environment:
             RABBIT_MQ_HOST: message_queue
