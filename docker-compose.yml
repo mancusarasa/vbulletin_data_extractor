@@ -27,3 +27,15 @@ services:
         depends_on:
             message_queue:
                 condition: service_healthy
+    data_persister:
+        build:
+            content: ./posts_persister
+            dockerfile: Dockerfile
+        environment:
+            RABBIT_MQ_HOST: message_queue
+            RABBIT_MQ_PORT: 5672
+            RABBIT_MQ_USER: user
+            RABBIT_MQ_PASS: pass
+        depends_on:
+            message_queue:
+                condition: service_healthy
