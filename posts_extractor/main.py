@@ -5,14 +5,25 @@ from typing import Set, Tuple
 from urllib.parse import urljoin
 import re
 from json import dumps
+import logging
 
 from bs4 import BeautifulSoup
 import requests
 
 from config import app_config
 from login import perform_login
+from page import get_content
 
 from amqp_connection import AmqpConnection
+
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
+
+logger = logging.getLogger('my_app')
+logger.setLevel(logging.DEBUG)
 
 
 def extract_forums(base_url: str) -> Set[str]:
@@ -35,12 +46,7 @@ def extract_forums(base_url: str) -> Set[str]:
         :return Set[str] set of urls of the subforums
         '''
         # FIXME: exclude do=markread from here
-        try:
-            page = session.get(base_url)
-        except requests.exceptions.RequestException as e:
-            print(f'Skipping {base_url}')
-            return
-        soup = BeautifulSoup(page.text, 'html.parser')
+        soup = get_content(base_url, session)
         for link in soup.find_all('a'):
             href = link.get('href')
             if href is None:
@@ -63,13 +69,11 @@ def extract_forum_pages(forum_url: str) -> Set[str]:
     :param str forum_url url whose pages we need
     :return Set[str] set of urls with the pages of each subforum.
     '''
-    session = perform_login()
     try:
-        page = session.get(forum_url)
+        soup = get_content(forum_url)
     except requests.exceptions.RequestException as e:
-        print(f'Skipping forum {forum_url} from extract_forum_pages')
+        logger.warning(f'Skipping forum {forum_url} from extract_forum_pages')
         return set([forum_url])
-    soup = BeautifulSoup(page.text, 'html.parser')
     pages_count = 1
     for td in soup.find_all('td', class_='vbmenu_control'):
         for content in td.contents:
@@ -88,12 +92,7 @@ def extract_threads(forum_url: str) -> Set[str]:
     :return set of all the urls of the threads in the subforum.
     '''
     threads_urls = set()
-    session = perform_login()
-    try:
-        page = session.get(forum_url)
-    except requests.exceptions.RequestException:
-        print(f'Skipping subforum {forum_url}')
-    soup = BeautifulSoup(page.text, 'html.parser')
+    soup = get_content(forum_url)
     for link in soup.find_all('a'):
         href = link.get('href')
         if href is None:
@@ -114,11 +113,10 @@ def extract_thread_pages(thread_url: str) -> Set[str]:
     '''
     session = perform_login()
     try:
-        page = session.get(thread_url)
+        soup = get_content(thread_url)
     except requests.exceptions.RequestException as e:
-        print(f'Skipping thread {thread_url} from extract_thread_pages')
+        logger.warning(f'Skipping thread {thread_url} from extract_thread_pages')
         return set([thread_url])
-    soup = BeautifulSoup(page.text, 'html.parser')
     pages_count = 1
     for td in soup.find_all('td', class_='vbmenu_control'):
         for content in td.contents:
@@ -130,13 +128,11 @@ def extract_thread_pages(thread_url: str) -> Set[str]:
 
 def extract_posts(thread_page_url: str) -> Set[Tuple[str, str]]:
     posts = set()
-    session = perform_login()
     try:
-        page = session.get(thread_page_url)
+        soup = get_content(thread_page_url)
     except requests.exceptions.RequestException as e:
-        print(f'Skipping thread page {thread_page_url} from extract_posts')
+        logger.warning(f'Skipping thread page {thread_page_url} from extract_posts')
         return posts
-    soup = BeautifulSoup(page.text, 'html.parser')
     for post in soup.find_all('table', id=lambda post_id: post_id and re.match('^post[0-9]+$', post_id)):
         username_tag = post.find(class_='bigusername')
         if username_tag:
@@ -168,4 +164,3 @@ if __name__ == '__main__':
                         } for username, content in posts
                     ]
                     connection.send_message(dumps(message))
-                    # exit(0)
