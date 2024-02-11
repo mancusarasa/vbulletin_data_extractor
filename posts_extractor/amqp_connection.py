@@ -15,7 +15,6 @@ class AmqpConnection:
             port=getenv('RABBIT_MQ_PORT'),
             virtual_host='/',
             credentials=credentials
-
         )
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
