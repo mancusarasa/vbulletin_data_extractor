@@ -1,7 +1,7 @@
 FROM python:3.9
 
-RUN mkdir -p /root/data_extractor
-WORKDIR /root/data_extractor
+RUN mkdir -p /root/posts_extractor
+WORKDIR /root/posts_extractor
 ADD . ./
 RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
 ENV PYTHONUNBUFFERED=1
